@@ -39,8 +39,7 @@ with open(Path(Path(__file__).parent,f"{Path(__file__).stem}.json").as_posix()) 
     _d=  json.loads(_f.read())
 
 root_Results=  _d["root_Results"]
-datasets = _d["datasets"]
-pcache_invK = _d["pcache_invK"]
+datasets = _d["datasets"] 
 '''
 2021-2-5, RenNet/framework/Core/RyCore/__init__
 '''
@@ -253,7 +252,14 @@ class LazyDict:
     def __setitem__(self,key,value):
         self.data[key] = value
 
-
+import torch
+from typing import Dict
+class BufferDict(torch.nn.Module):
+    def __init__(self,d:Dict,persistent:bool):
+        super().__init__()
+        for k,v in d.items():
+            self.register_buffer(k,v,persistent=persistent)
+        
 
 import collections
 from typing import Callable,Iterable

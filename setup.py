@@ -46,7 +46,6 @@ else:
 
 # Create mentioned folder 
 Path(_d["root_Results"]).mkdir(parents=True,exist_ok=True)
-Path(_d["pcache_invK"]).mkdir(parents=True,exist_ok=True)
 
 
 # with open('requirements.yml') as f:
