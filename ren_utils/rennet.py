@@ -69,6 +69,30 @@ ENDL = "\n"
 #
 
 
+# PLOT Console
+
+from enum import Enum
+
+
+class Color(Enum):
+    red=  'red'
+    green = 'green'
+
+def COLOR(s:str,color:Color=Color.red)->str:
+    '''
+    r   red
+    g   green
+    '''
+    if color == Color.red:
+        r= '\033[5;31;40m{}\033[0m'.format(s)
+    elif color ==Color.green:
+        r = '\033[4;32;40m{}\033[0m'.format(s)
+    else:
+        r = s
+    return r
+
+
+
 def print_notice(*obj_list):
     """
     Green"""
@@ -81,7 +105,6 @@ def print_error(*obj_list):
 
 
 # PLOT Time
-
 def sec2hr(sec:float):
     """
     h,m,s: float,float,float
@@ -110,7 +133,6 @@ def getTimestrAsFilename():
     
     return now_str
 
-# PLOT File
 
 def getcfp(s:str):
     p = os.path.split(s)[0]
@@ -118,57 +140,159 @@ def getcfp(s:str):
 
 
 
-
-
-def is_valid_keys(keys,valid_keys:List[str],check_name:Optional[str]=None,raise_exception=True):
-
-    if check_name is None:
-        check_name ="is_valid_keys"
-    invalid_keys = []
-
-    for k in keys:
-        if k not in valid_keys:
-            invalid_keys.append(k)
-    if raise_exception:
-        assert len(invalid_keys)==0,f"{check_name}: {invalid_keys} not in {valid_keys}."
-    else:
-        return invalid_keys
-
-def has_keys(required_keys:List[str],target_dict:dict,dict_name:Optional[str]=None,raise_exception =True):
+class Errmsg:
+    """errmsg_data and errmsg_append. A mixin class.
     
-    if dict_name is None:
-        dict_name = 'has_keys'
-    missing_keys = []
-    for k in required_keys:
-        if k not in target_dict:
-            missing_keys.append(k)
-    if raise_exception:
-        assert len(missing_keys)==0,f"{dict_name}:{missing_keys} not found."
-    else:
-        return missing_keys
+    .errmsg_data = [msg]
+    - msg = (title:str,cont:str)
+
+    If (N:=max_n_errmsg)>0:
+    - Will keep a list of at most 2*N length.
+    - Trancate to latest N-msg, if more than 2*N
 
 
-# PLOT Console
-from enum import Enum
+    Mode:
+    - plaintext
+    - asjsonstr
+    
+    Example:
+    ````python
+    class A(Errmsg):
+        def __init__(self,arg_int,arg_str):
+            Errmsg.__init__()
+            if not isinstance(arg_int, int):
+                self.errmsg_append(f"arg_int({arg_int}) is not int, but {type(arg_int)}.", title="Warn")
+            if not isinstance(arg_str,str):
+                self.errmsg_append(f"arg_str({arg_str}) is not str, but {type(arg_str)}.", title="Warn")
+            
+    a = A(1,2)
+    a.errmsg_printall()
+    a.errmsg_printlast(1)
+    ````
+    """
+    titles = ["Info","Warning","Error"]
+    def __init__(self,max_n_errmsg:int=0):
+        # ,=arrmsg_data = [(msg_to_print, title)]
+        self.errmsg_data=[] # type: List[Tuple[str,str]]
+        self.max_n_errmsg = max_n_errmsg
+
+    def errmsg_append(self,content:any,title="Info",mode="plaintext"):
+        if mode == "plaintext":
+            try:
+                cont = str(content)
+            except Exception as e:
+                self.errmsg_printall()
+                raise e
+            
+        elif mode == "asjsonstr":
+            try:
+                cont= json.dumps(content)
+            except Exception as e:
+                self.errmsg_printall()
+                raise e
+        else:
+            raise Exception(f"Unknown mode: {mode}")
+        
+        self.errmsg_data.append((title,cont))
+        self.errmsg_flush()
 
 
-class Color(Enum):
-    red=  'red'
-    green = 'green'
 
-def COLOR(s:str,color:Color=Color.red)->str:
-    '''
-    r   red
-    g   green
-    '''
-    if color == Color.red:
-        r= '\033[5;31;40m{}\033[0m'.format(s)
-    elif color ==Color.green:
-        r = '\033[4;32;40m{}\033[0m'.format(s)
-    else:
-        r = s
-    return r
+    def errmsg_flush(self):
+        N =self.max_n_errmsg
+        n = len(self.errmsg_data)
+        if N>0 and n>=2*N:
+            self.errmsg_data = self.errmsg_data[n-N:]
+    
+    def errmsg_clear(self):
+        self.errmsg_data.clear()
+        
+    def errmsg_raise_if(self,alert_titles=["Error"], printall_before_raise = False):
+        if not len(self.errmsg_data) ==0:
+            cnt = {}
+            for k in alert_titles:
+                cnt[k] = 0
+            for title,_ in self.errmsg_data:
+                if title in alert_titles:
+                    cnt[title]+=1
+            
+            if any(v > 0 for v in cnt.values()):
+                if printall_before_raise:
+                    self.errmsg_printall()
+                raise Exception(f"Alerted message found: {', '.join(f'{k}: {v}' for k,v in cnt)}")
+            
+    def errmsg_count(self, titles = []):
+        assert len(titles)>=1
+        n = 0
+        for title,_ in self.errmsg_data:
+            if title in titles:
+                n+=1
+        return n
+    
+    def errmsg_fetch(self, titles = []):
+        l = []
+        for title,cont in self.errmsg_data:
+            if title in titles:
+                l.append((title,cont))
+        return l
+    
+    def errmsg_drop(self, titles=[]):
+        l = []
+        ld = []
+        for title,cont in self.errmsg_data:
+            if title not in titles:
+                l.append((title,cont))
+            else:
+                ld.append((title,cont))
+        self. errmsg_data = l
+        return ld
+            
+    
+    def errmsg_msg2str(self,msg):
+        """
+        title,c = msg
+        """
+        title,c = msg
+        msgstr = f"- {title}: {c}"
+        return msgstr
+    
+    def errmsg_print(self,msg:Tuple):
+        """
+        msg = title:str,content:str
+        """
+        title,_ = msg
+        _ms=  self.errmsg_msg2str
+        if title == "Error":
+            print_error(_ms(msg))
+        else:
+            print_notice(_ms(msg))
+        
+    
+    def errmsg_printall(self,recursive=False,suffix=""):
+        """ 
+        recursive:
+            Recursive on vars(self) if have `errmsg_printall`
+        """
+        
+        if len(self.errmsg_data)>0:
+            _ms=  self.errmsg_msg2str
+            for msg in self.errmsg_data:
+                self.errmsg_print(msg)
+        else:
+            print_notice("No errmsg.")
 
+        if recursive == True:
+            for name,m in vars(self).items():
+                if hasattr(m,"errmsg_printall"):
+                    print_notice(f"== Errmsg:{name}{suffix}")
+                    m.errmsg_printall(recursive=recursive,suffix=f".{name}")
+            
+    def errmsg_printlast(self,n_last:int =1):
+        if len(self.errmsg_data)>0:
+            for i in range(n_last):
+                self.errmsg_print(self.errmsg_data[-i])
+        else:
+            print_notice("No errmsg.")
 
 
 
@@ -260,6 +384,40 @@ class BufferDict(torch.nn.Module):
         for k,v in d.items():
             self.register_buffer(k,v,persistent=persistent)
         
+
+
+
+# PLOT dict and keys
+
+
+def is_valid_keys(keys,valid_keys:List[str],check_name:Optional[str]=None,raise_exception=True):
+
+    if check_name is None:
+        check_name ="is_valid_keys"
+    invalid_keys = []
+
+    for k in keys:
+        if k not in valid_keys:
+            invalid_keys.append(k)
+    if raise_exception:
+        assert len(invalid_keys)==0,f"{check_name}: {invalid_keys} not in {valid_keys}."
+    else:
+        return invalid_keys
+
+def has_keys(required_keys:List[str],target_dict:dict,dict_name:Optional[str]=None,raise_exception =True):
+    
+    if dict_name is None:
+        dict_name = 'has_keys'
+    missing_keys = []
+    for k in required_keys:
+        if k not in target_dict:
+            missing_keys.append(k)
+    if raise_exception:
+        assert len(missing_keys)==0,f"{dict_name}:{missing_keys} not found."
+    else:
+        return missing_keys
+
+
 
 import collections
 from typing import Callable,Iterable
@@ -625,6 +783,8 @@ def format_by_re(string_template:str,d:dict,**kwargs):
     s2=  string_template.format(**dargs)
     return s2
 
+
+# PLOT config
 import json
 from pathlib import PosixPath
 class RenNetJSONEncoder(json.JSONEncoder):

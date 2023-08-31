@@ -13,6 +13,60 @@ from tqdm import tqdm, trange
 
 from mha8.utils.rennet import (call_by_inspect, getitems_as_dict)
 
+
+# PLOT runner
+from pprint import pformat
+def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,p_configs:str):
+    """
+    See run_configs
+    """
+    _config_yaml = Path(p_configs)
+    assert _config_yaml.suffix == ".yaml"
+    assert _config_yaml.exists(), _config_yaml
+    with open(_config_yaml,"r") as f:
+        d= yaml.load(f,Loader=RenNetLoader)
+
+    configs = {}
+    elist= d["experiments"]
+    for title_,v in elist.items():
+        if title_ == title:
+            configs[title]=  (v["compiler"],v["config"])
+            break
+    else:
+        raise Exception(f"Title {title} not found in {list(elist.keys())}")
+
+    print(pformat(configs))
+    
+
+    return run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict)
+
+import yaml
+import os
+from ren_utils.rennet import call_by_inspect,getitems_as_dict,RenNetDumper,RenNetLoader
+def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict):
+    """
+    compiler_dict:
+        - key: parser name
+        - value" parser function, (args)-> trainer,model,runner; See functions compile_xxx in `dec.py`.
+    
+    configs = List[title,[compiler,config]]
+
+    """
+    for title,(compiler,config) in configs.items():
+        if compiler not in compiler_dict:
+            raise KeyError(f"Function `{compiler}` should be found as a key in compiler_dict.")
+        trainer, model, runner = call_by_inspect(compiler_dict[compiler], config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
+        p = Path(trainer.log_dir,"config.yaml")
+        p.parent.mkdir(exist_ok=True,parents=True)
+        if p.exists():
+            os.remove(p)
+        with open(p,"w") as f:
+            yaml.dump(config,f,Dumper=RenNetDumper)
+        print(f"- Save yaml: {p}")
+        
+        return runner(trainer, model, dm)
+
+# PLOT callback
 # =====================
 import time
 from datetime import timedelta
