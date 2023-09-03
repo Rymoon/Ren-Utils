@@ -12,13 +12,25 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
 
 from mha8.utils.rennet import (call_by_inspect, getitems_as_dict)
-
+from typing import List,Tuple,Optional
 
 # PLOT runner
 from pprint import pformat
-def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,p_configs:str):
+def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,p_configs:str, config_override:List[Tuple[str,Any]]=[]):
     """
-    See run_configs
+
+    1. config = configs[title]
+    2. config === {
+        "config_parser": <func name>
+        "config": <dict>, # (key:value) --> keyword-args in compiler: compile_model__xxx func.
+        ...
+    }   
+    3. (See `run_configs`)
+        - compiler = compiler_dict[compiler_name]
+        - trainer, model = call_by_inspect(compiler, config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
+        - ...
+
+    config_override: For example, [( "dpm_ins.C",3),( "dpm_ins.C",5)]; then ["config"]["dpm_ins"]["C"] is 5
     """
     _config_yaml = Path(p_configs)
     assert _config_yaml.suffix == ".yaml"
@@ -28,22 +40,47 @@ def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_d
 
     configs = {}
     elist= d["experiments"]
-    for title_,v in elist.items():
+    for title_,experiment in elist.items():
         if title_ == title:
-            configs[title]=  (v["compiler"],v["config"])
+            config = experiment["config"]
+            compiler = experiment["compiler"]
+            for keys,value in config_override:
+                _c = config
+                _ks = keys.split(".")
+                if len(_ks)>1:
+                    for k in _ks[:-1]:
+                        _c = _c[k]
+                _c[_ks[-1]] = value
+            configs[title]=  (compiler,config)
             break
     else:
         raise Exception(f"Title {title} not found in {list(elist.keys())}")
 
     print(pformat(configs))
+
+    note = {
+        "experiment":experiment,
+        "config_override":config_override,
+    }
     
 
-    return run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict)
+    run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict,note=note)
+
 
 import yaml
 import os
 from ren_utils.rennet import call_by_inspect,getitems_as_dict,RenNetDumper,RenNetLoader
-def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict):
+
+def save_yaml(p,d:dict):
+    p = Path(p)
+    p.parent.mkdir(exist_ok=True,parents=True)
+    if p.exists():
+        os.remove(p)
+    with open(p,"w") as f:
+        yaml.dump(d,f,Dumper=RenNetDumper)
+    print(f"- Save yaml: {p}")
+
+def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,note={}):
     """
     compiler_dict:
         - key: parser name
@@ -56,13 +93,13 @@ def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,comp
         if compiler not in compiler_dict:
             raise KeyError(f"Function `{compiler}` should be found as a key in compiler_dict.")
         trainer, model, runner = call_by_inspect(compiler_dict[compiler], config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
+
         p = Path(trainer.log_dir,"config.yaml")
-        p.parent.mkdir(exist_ok=True,parents=True)
-        if p.exists():
-            os.remove(p)
-        with open(p,"w") as f:
-            yaml.dump(config,f,Dumper=RenNetDumper)
-        print(f"- Save yaml: {p}")
+        save_yaml(p,config)
+
+
+        p = Path(trainer.log_dir,"note.yaml")
+        save_yaml(p,note)
         
         return runner(trainer, model, dm)
 
