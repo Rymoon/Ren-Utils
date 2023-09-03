@@ -70,10 +70,10 @@ ENDL = "\n"
 
 
 # PLOT Console
+from rich.console import Console
+console = Console(record=True)
 
 from enum import Enum
-
-
 class Color(Enum):
     red=  'red'
     green = 'green'
@@ -93,15 +93,15 @@ def COLOR(s:str,color:Color=Color.red)->str:
 
 
 
-def print_notice(*obj_list):
+def print_notice(*obj_list,_stack_offset_plus=0):
     """
     Green"""
-    print(*obj_list,style="green")
+    console.log(*obj_list,style="green",_stack_offset=2+_stack_offset_plus)
 
-def print_error(*obj_list):
+def print_error(*obj_list,_stack_offset_plus=0):
     """
     Red"""
-    print(*obj_list,style="red")
+    console.log(*obj_list,style="red",_stack_offset=2+_stack_offset_plus)
 
 
 # PLOT Time
@@ -256,19 +256,19 @@ class Errmsg:
         msgstr = f"- {title}: {c}"
         return msgstr
     
-    def errmsg_print(self,msg:Tuple):
+    def errmsg_print(self,msg:Tuple,*,_stack_offset_plus=0):
         """
         msg = title:str,content:str
         """
         title,_ = msg
         _ms=  self.errmsg_msg2str
         if title == "Error":
-            print_error(_ms(msg))
+            print_error(_ms(msg),_stack_offset_plus=_stack_offset_plus+1)
         else:
-            print_notice(_ms(msg))
+            print_notice(_ms(msg),_stack_offset_plus=_stack_offset_plus+1)
         
     
-    def errmsg_printall(self,recursive=False,suffix=""):
+    def errmsg_printall(self,recursive=False,suffix="",_stack_offset_plus=0):
         """ 
         recursive:
             Recursive on vars(self) if have `errmsg_printall`
@@ -277,7 +277,7 @@ class Errmsg:
         if len(self.errmsg_data)>0:
             _ms=  self.errmsg_msg2str
             for msg in self.errmsg_data:
-                self.errmsg_print(msg)
+                self.errmsg_print(msg,_stack_offset_plus=1+_stack_offset_plus)
         else:
             print_notice("No errmsg.")
 
