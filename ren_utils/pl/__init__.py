@@ -135,6 +135,7 @@ class ElapsedTime(pl.Callback):
     def __init__(self):
         self.tic = None
         self.toc = None
+        self.fname = "elapsed_time.yaml"
     def on_fit_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         self.tic = time.time()
         return super().on_fit_start(trainer, pl_module)
@@ -154,4 +155,15 @@ class ElapsedTime(pl.Callback):
     def on_fit_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         self.toc = time.time()
         print("- elapsed time: ",timedelta(seconds=self.toc-self.tic),"\n")
+
+        log_dir =  trainer.log_dir
+        fname = self.fname
+        d = {
+            "human":f"{timedelta(seconds=self.toc-self.tic)}",
+            "seconds":f"{self.toc-self.tic}"
+        }
+        p=  Path(log_dir,fname)
+
+        save_yaml(p,d)
+        print("- Save elapsed time:",p.as_posix())
         return super().on_fit_end(trainer, pl_module)
