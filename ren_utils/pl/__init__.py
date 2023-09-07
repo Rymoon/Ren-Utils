@@ -11,7 +11,6 @@ import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
 
-from mha8.utils.rennet import (call_by_inspect, getitems_as_dict)
 from typing import List,Tuple,Optional
 
 # PLOT runner
