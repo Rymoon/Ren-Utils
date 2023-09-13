@@ -62,7 +62,7 @@ class ImageDataset(Dataset,Errmsg):
     def __init__(self, layers:List[List[str|Path]]|Any, resize_size: None|Tuple[int,int]=None):
         """
         By default, 
-        1. self.prepare_datapair(**layers) to create matched data-pair;
+        1. self._prepare_datapair(**layers) to create matched data-pair;
         2. _transform(layers,i,j) take:
         
             layers = [layer0,layer1,...]
@@ -99,12 +99,12 @@ class ImageDataset(Dataset,Errmsg):
     
     def init(self,layers,resize_size):
         """
-        1. prepare_datapair
+        1. _prepare_datapair
         2. transform
         3. length
         """
         # Override paired_layers if not the case.
-        self.paired_layers = self.prepare_datapair(layers) # type: List[List[str|Path]]
+        self.paired_layers = self._prepare_datapair(layers) # type: List[List[str|Path]]
         
         
 
@@ -148,7 +148,7 @@ class ImageDataset(Dataset,Errmsg):
         
 
  
-    def prepare_datapair(self,layers):
+    def _prepare_datapair(self,layers):
         """
         1. Loop: Follow the order of layers[0],
         2. Match: Search in other layers[i], for filename of the same stem.
@@ -175,7 +175,7 @@ class ImageDataset(Dataset,Errmsg):
         for i in _layers_i:
             if len(layers[0]) == len(layers[i]):
                 msg = f"length of layers[.] not equal, 0:{len(layers[0])}, {i}:{len(layers[i])}"
-                self.errmsg_append(msg,"prepare_datapair - length")
+                self.errmsg_append(msg,"_prepare_datapair - length")
     
         
         stem_ld = [None]*_layers_n
@@ -193,10 +193,10 @@ class ImageDataset(Dataset,Errmsg):
                     paired_layers[i].append(stem_ld[i][stem]) 
                 else:
                     paired_layers[i].append(None)
-                    self.errmsg_append(("Missing",(i,j,stem)),"prepare_datapair - pair") 
+                    self.errmsg_append(("Missing",(i,j,stem)),"_prepare_datapair - pair") 
         
         self.errmsg_printall()
-        self.errmsg_raise_if(["prepare_datapair - pair"])
+        self.errmsg_raise_if(["_prepare_datapair - pair"])
         return paired_layers
 
     def __len__(self):

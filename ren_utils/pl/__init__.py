@@ -16,22 +16,8 @@ from typing import List,Tuple,Optional
 
 # PLOT runner
 from pprint import pformat
-def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,p_configs:str, config_override:List[Tuple[str,Any]]=[]):
-    """
 
-    1. config = configs[title]
-    2. config === {
-        "config_parser": <func name>
-        "config": <dict>, # (key:value) --> keyword-args in compiler: compile_model__xxx func.
-        ...
-    }   
-    3. (See `run_configs`)
-        - compiler = compiler_dict[compiler_name]
-        - trainer, model = call_by_inspect(compiler, config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
-        - ...
-
-    config_override: For example, [( "dpm_ins.C",3),( "dpm_ins.C",5)]; then ["config"]["dpm_ins"]["C"] is 5
-    """
+def configs_by_title(title,*,p_configs,config_override=[]):
     _config_yaml = Path(p_configs)
     assert _config_yaml.suffix == ".yaml"
     assert _config_yaml.exists(), _config_yaml
@@ -55,7 +41,26 @@ def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_d
             break
     else:
         raise Exception(f"Title {title} not found in {list(elist.keys())}")
+    return configs, experiment
+    
+    
+def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,p_configs:str, config_override:List[Tuple[str,Any]]=[]):
+    """
 
+    1. config = configs[title]
+    2. config === {
+        "config_parser": <func name>
+        "config": <dict>, # (key:value) --> keyword-args in compiler: compile_model__xxx func.
+        ...
+    }   
+    3. (See `run_configs`)
+        - compiler = compiler_dict[compiler_name]
+        - trainer, model = call_by_inspect(compiler, config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
+        - ...
+
+    config_override: For example, [( "dpm_ins.C",3),( "dpm_ins.C",5)]; then ["config"]["dpm_ins"]["C"] is 5
+    """
+    configs,experiment = configs_by_title(title,p_configs=p_configs,config_override=config_override)
     print(pformat(configs))
 
     note = {
