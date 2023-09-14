@@ -164,16 +164,16 @@ class ImageDataset(Dataset,Errmsg):
         """
         
         assert len(layers[0])>0
+        _layers_n = len(layers)
         _layers_i=  []
         for i in range(_layers_n):
             if layers[i] is not None:
                 _layers_i.append(i) 
         
-        _layers_n = len(layers)
         
         # layers[i] != layers[j] is ok
         for i in _layers_i:
-            if len(layers[0]) == len(layers[i]):
+            if len(layers[0]) != len(layers[i]):
                 msg = f"length of layers[.] not equal, 0:{len(layers[0])}, {i}:{len(layers[i])}"
                 self.errmsg_append(msg,"_prepare_datapair - length")
     

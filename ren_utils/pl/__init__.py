@@ -68,7 +68,7 @@ def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_d
     }
     
 
-    run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict,note=note)
+    return run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict,note=note)
 
 
 import yaml

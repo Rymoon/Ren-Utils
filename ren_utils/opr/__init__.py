@@ -89,6 +89,8 @@ def psf2otf_tc(kernel:torch.Tensor,out_shape:Tuple[int,int]):
     psf = torch.roll(psf,roll_shape,(-2,-1))
     res= rfft2_tc(psf)
     return res
+
+_cr  =  lambda K:(round((K.shape[-2]-1)/2),round((K.shape[-1]-1)/2))
 psf2otf =     psf2otf_tc
 
 def deconv2fft(Du:torch.Tensor,D:torch.Tensor):
