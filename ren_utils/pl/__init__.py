@@ -63,7 +63,7 @@ def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_d
     print(pformat(configs))
 
     note = {
-        "experiment":experiment,
+        "experiment":experiment,    
         "config_override":config_override,
     }
     
