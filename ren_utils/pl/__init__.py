@@ -12,9 +12,11 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
 
 from typing import List,Tuple,Optional
-
+#
+from ren_utils.rennet import get_callable_definition_location,print_WhiteRed_string
 # PLOT runner
 from pprint import pformat
+
 
 def configs_by_title(title,*,p_configs,config_override=[]):
     _config_yaml = Path(p_configs)
@@ -96,8 +98,11 @@ def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,comp
     for title,(compiler,config) in configs.items():
         if compiler not in compiler_dict:
             raise KeyError(f"Function `{compiler}` should be found as a key in compiler_dict.")
-        trainer, model, runner = call_by_inspect(compiler_dict[compiler], config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
-
+        try:
+            trainer, model, runner = call_by_inspect(compiler_dict[compiler], config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
+        except Exception as e:
+            print_WhiteRed_string(f'- RenUtilsError: definion of compiler func `{compiler}` at: {get_callable_definition_location(compiler_dict[compiler],format="vst")}')
+            raise e
         p = Path(trainer.log_dir,"config.yaml")
         save_yaml(p,config)
 

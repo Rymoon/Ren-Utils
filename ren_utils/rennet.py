@@ -91,7 +91,19 @@ def COLOR(s:str,color:Color=Color.red)->str:
         r = s
     return r
 
+def pformat_WhiteRed_string(string):
+    """BG: white; FG: RED
+    """
+    WHITE_BG_RED_FONT = '\033[47;31m'
+    RESET_COLOR = '\033[0m'
+    colored_string = f"{WHITE_BG_RED_FONT}{string}{RESET_COLOR}"
+    return colored_string
 
+def print_WhiteRed_string(string):
+    """BG: white; FG: RED
+    """
+    colored_string  =pformat_WhiteRed_string (string)
+    print(colored_string)
 
 def print_notice(*obj_list,_stack_offset_plus=0):
     """
@@ -955,6 +967,43 @@ def collect_globals(global_dict:dict,type_to_match=[float,int,str,dict,list],ign
 
 
 
+import inspect
+def _codeline_location_formatter(filepath,lineno,format):
+    """
+    format="plain": return (path,lineno)
+    
+    format="vst": Format for vscode terminal; Click and jump to"""
+    
+    if format=="plain":
+        return filepath, lineno
+    elif format =="vst": 
+        return f"{str(filepath)}:{str(lineno)}"
+    else:
+        raise Exception(f"- RenUtilsError: format not support: {format}")
+    
+
+def get_callable_definition_location(callable_f,*,format="plain"):
+    """
+    format="plain"(default): return (path,lineno)
+    
+    format="vst": Format for vscode terminal; Click and jump to"""
+    if inspect.isfunction(callable_f):
+        func = callable_f
+        filepath = inspect.getfile(func)
+        _, lineno = inspect.getsourcelines(func)
+    elif hasattr(callable_f, '__call__'):
+        cls = type(callable_f)
+        filepath = inspect.getfile(cls)
+        _, lineno = inspect.getsourcelines(cls)
+    else:
+        raise Exception()
+    return _codeline_location_formatter(filepath,lineno,format)
+
+def get_caller_location(*,format = "plain"):
+    frame = inspect.currentframe().f_back
+    filepath = frame.f_code.co_filename
+    lineno = frame.f_lineno
+    return _codeline_location_formatter(filepath,lineno,format)
 
 # ==== yaml dumper/loader
 import torch
@@ -1068,3 +1117,23 @@ class RenNetLoader(yaml.SafeLoader):
         return tsr
 
 add_constructors(RenNetLoader,list(vars(RenNetLoader).values()), prefix="constructor")
+
+
+
+
+
+from pathlib import Path
+def get_configs_path(pkg, env__file__):
+    root_pkg = Path(pkg.__file__).parent
+    configs_fname = ".".join(Path(env__file__).relative_to(root_pkg).parts)
+    configs_fname  = Path(configs_fname).stem+".yaml"
+    configs_path = Path(root_pkg.parent,"Scripts",configs_fname)
+    configs_path.parent.mkdir(parents=True,exist_ok=True)
+    return configs_path
+
+def get_root_Results(pkg):
+    root_pkg = Path(pkg.__file__).parent
+    root_Results = Path(root_pkg.parent,"Results")
+    assert (root_Results).exists(),f"Results folder not exists. Create of softlink it: {root_Results}"
+    
+    return root_Results
