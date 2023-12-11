@@ -17,7 +17,7 @@ from ..rennet import (call_by_inspect, getitems_as_dict,
 # ==== utils ====
 def do_remap(v):
     return (v-v.min())/(v.max()-v.min())
-def list_pictures(directory, ext:Tuple|str=('jpg', 'jpeg', 'bmp', 'png', 'ppm', 'tif','tiff','gif')):
+def list_pictures(directory, ext:Tuple[str]|str=('jpg', 'jpeg', 'bmp', 'png', 'ppm', 'tif','tiff','gif')):
     """Lists all pictures in a directory, including all subdirectories.
 
     # Arguments
@@ -29,9 +29,21 @@ def list_pictures(directory, ext:Tuple|str=('jpg', 'jpeg', 'bmp', 'png', 'ppm', 
 
 
     # Copy from keras_preprocessing.image.utils::list_pictures
+    
+    
+    
     """
     assert Path(directory).exists(), f"Not exists: {directory}"
-    ext = tuple('.%s' % e for e in ((ext,) if isinstance(ext, str) else ext))
+    if isinstance(ext,str):
+        ext = (ext,)
+    _ext = []
+    for e in ext:
+        e = e.lstrip()
+        if e[0] ==".":
+            _ext.append(e)
+        else:
+            _ext.append("."+e)
+        
     return [os.path.join(root, f)
             for root, _, files in os.walk(directory) for f in files
             if f.lower().endswith(ext)]
