@@ -30,9 +30,10 @@ else:
 # Create apps/rennet.json
 _d = {
     "root_Results":Path(ppkg.parent,"Results").as_posix(),
+    "root_Datasets":Path(ppkg.parent,"Datasets").as_posix(),
     "datasets":{
         "Dumb":{
-            "imgs":"",
+            "imgs":"",# Reletive to root_Datasets
             "suffix":"jpg"
             }
         }

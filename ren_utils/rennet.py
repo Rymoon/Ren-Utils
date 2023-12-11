@@ -12,25 +12,16 @@ From RenNet/env.py,
 
 Example of apps/rennet.json:
 {
-    "root_Results":"/.../Results",
-    "pcache_invK":"/.../Results/pcache_invK/",
-    "datasets":{
+    "root_Results": "/home/tjrym/workspace/Ren-Utils/Results",
+    "datasets": {
+        "Dumb": {
+            "imgs": "",
+            "suffix": "jpg"
+        },
         "CelebAHQ256":{
-            "imgs":"/.../Dataset/CelebAHQ/data256x256/",
+            "imgs":"CelebAHQ/data256x256/",
             "suffix":"jpg"
-            },
-        "CelebAHQ256_valid":{
-            "imgs":"/.../Dataset/CelebAHQ/data256x256_valid/",
-            "suffix":"jpg"
-        },
-        "CelebAHQ256_1":{
-            "imgs":"/.../Dataset/CelebAHQ_1/",
-            "suffix":"jpg"
-        },
-        "CelebAHQ256_2":{
-            "imgs":"/.../Dataset/CelebAHQ_2/",
-            "suffix":"jpg"
-        }
+            }
     }
 }
 
@@ -39,7 +30,13 @@ with open(Path(Path(__file__).parent,f"{Path(__file__).stem}.json").as_posix()) 
     _d=  json.loads(_f.read())
 
 root_Results=  _d["root_Results"]
-datasets = _d["datasets"] 
+root_Datasets = _d["root_Datasets"]
+datasets = {}
+for k,v in _d["datasets"].items():
+    _v = dict(v)
+    _v["imgs"] = Path(root_Datasets,_v["imgs"]).as_posix()
+    datasets[k] = _v
+
 '''
 2021-2-5, RenNet/framework/Core/RyCore/__init__
 '''
