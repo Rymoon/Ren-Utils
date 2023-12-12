@@ -796,6 +796,15 @@ def format_by_re(string_template:str,d:dict,**kwargs):
 # PLOT config
 import json
 from pathlib import PosixPath
+
+class JSONDict:
+    def as_dict(self):
+        return {}
+
+class JSONList:
+    def as_list(self):
+        return []
+import torch
 class RenNetJSONEncoder(json.JSONEncoder):
     """
     - MsgedDict: Dict
@@ -806,8 +815,19 @@ class RenNetJSONEncoder(json.JSONEncoder):
             return dict(obj)
         elif isinstance(obj,PosixPath):
             return obj.as_posix()
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+        elif isinstance(obj,JSONDict):
+            return obj.as_dict()
+        elif isinstance(obj,JSONList):
+            return obj.as_list()
+        elif isinstance(obj,torch.Tensor):
+            if obj.numel() == 1:
+                obj =  obj.detach().cpu()
+                return obj.item()
+            else:
+                return f"TensorShape({obj.shape})"
+        else:
+            # Let the base class default method raise the TypeError
+            return json.JSONEncoder.default(self, obj)
 
 
 
