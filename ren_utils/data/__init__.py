@@ -130,9 +130,9 @@ class ImageDataset(Dataset,Errmsg):
         # transform (default)
         self._trans = [
             torchvision.transforms.Compose(
-            ([torchvision.transforms.Resize(resize_size)] if resize_size is not None else [])
+            ([torchvision.transforms.Resize(resize_size)] if resize_size is not None else [])  # (input: PIL, NOT ndarray)
             +[torchvision.transforms.ToTensor(),]
-            ),
+            ),# (input: PIL or ndarray)[0,255] to [0,1], floatTensor
         ]
         
         
@@ -168,44 +168,47 @@ class ImageDataset(Dataset,Errmsg):
             * put None if not found.
         
         For example, if  
-        `self.layers        = [[...90 pathes], None, [...100 pathes]]`
+        `self.layers        = [[...90 paths], None, [...100 paths]]`
         then 
-        `self.paired_layers = [[...90 pathes], None, [...90 pathes]]`
+        `self.paired_layers = [[...90 paths], None, [...90 paths]]`
         
 
         """
-        
+        assert layers[0] is not None
         assert len(layers[0])>0
+        
         _layers_n = len(layers)
         _layers_i=  []
         for i in range(_layers_n):
             if layers[i] is not None:
                 _layers_i.append(i) 
         
-        
-        # layers[i] != layers[j] is ok
-        for i in _layers_i:
-            if len(layers[0]) != len(layers[i]):
-                msg = f"length of layers[.] not equal, 0:{len(layers[0])}, {i}:{len(layers[i])}"
-                self.errmsg_append(msg,"_prepare_datapair - length")
-    
-        
-        stem_ld = [None]*_layers_n
-        for i in _layers_i:
-            stem_ld[i]=  {Path(p).stem:p for p in layers[i]}
-        
-        paired_layers = [None]*_layers_n
-        for i in _layers_i:
-            paired_layers[i] = []
-        
-        for j in range(len(layers[0])):
-            stem = Path(layers[0][j]).stem # order of layers[0]
+        if len(_layers_i) >1:
+            # len( layers[i]) != len(layers[j]) is ok
             for i in _layers_i:
-                if stem in stem_ld[i]:
-                    paired_layers[i].append(stem_ld[i][stem]) 
-                else:
-                    paired_layers[i].append(None)
-                    self.errmsg_append(("Missing",(i,j,stem)),"_prepare_datapair - pair") 
+                if len(layers[0]) != len(layers[i]):
+                    msg = f"length of layers[.] not equal, 0:{len(layers[0])}, {i}:{len(layers[i])}"
+                    self.errmsg_append(msg,"_prepare_datapair - length")
+        
+            
+            stem_ld = [None]*_layers_n
+            for i in _layers_i:
+                stem_ld[i]=  {Path(p).stem:p for p in layers[i]}
+            
+            paired_layers = [None]*_layers_n
+            for i in _layers_i:
+                paired_layers[i] = []
+            
+            for j in range(len(layers[0])):
+                stem = Path(layers[0][j]).stem # order of layers[0]
+                for i in _layers_i:
+                    if stem in stem_ld[i]:
+                        paired_layers[i].append(stem_ld[i][stem]) 
+                    else:
+                        paired_layers[i].append(None)
+                        self.errmsg_append(("Missing",(i,j,stem)),"_prepare_datapair - pair") 
+        else:
+            paired_layers = layers
         
         self.errmsg_printall()
         self.errmsg_raise_if(["_prepare_datapair - pair"])
