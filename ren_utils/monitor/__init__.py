@@ -93,6 +93,18 @@ class RunTracer:
         return Path(self.output_dir,f"{key}.state").as_posix()
     def get_state_in_fp(self,key):
         return Path(self.input_dir,f"{key}.state").as_posix()
+    def load_state(self,key):
+        if self.input_dir is not None:
+            _p_in = self.get_state_in_fp(key)
+            if not Path(_p_in).exists():
+                raise Exception(f"- RuntimeError: load_state({key}): FileNoExist at {_p_in}")
+            else:
+                print(f"- Load in_state[{key}]: {_p_in}")
+                
+                input_d = torch.load(Path(_p_in).as_posix())
+        else:
+            raise Exception(f"- RuntimeError: load_state({key}): Require self.in_dir")
+        return input_d["value"]
     def state(self,key,value):
         if self.output_dir is None:
             raise Exception(f"- NotInitializedError: Assign self.output_dir before calling self.state(...).")
