@@ -12,24 +12,70 @@ import numpy as np
 
 
 class Summary(JSONDict):
+    """
+    A summary based on `result`,  which is for comparison.
+    """
     def __init__(self,errors:dict={},missings ={},extras={}):
         JSONDict.__init__(self)
         self.errors = errors   
         self.missings = missings
         self.extras = extras
-        
+
+        self.added_fields = {}
+    def add_field(self,name,value):
+        """
+        Add a name-value to returns from as_dict and __str__
+        """
+        self.added_fields[name] = value
     def as_dict(self):
-        return {
+        ret =  {
             "errors":self.errors, # pindex:info
             "missings":self.missings,
             "extras":self.extras,
         }
+        if len(self.added_fields) >0:
+            ret.update(self.added_fields)
+        return ret
+    def _msg_dict(self,title,d,limit_n=10):
+        if len(d)<limit_n:
+            msg=f"\n{title}:\n"+pformat(d)
+        else:
+            _d = {k:d[k] for i,k in zip(range(limit_n),d.keys())}
+            _d_str = pformat(_d)
+            _line = _d_str.split("\n")[-1]
+            _n_space = len(_line)-len(_line.lstrip())
+            _d_str = _d_str[:-1]+"\n"+" "*_n_space+f"...{len(d)} in total}}"
+            
+            msg=f"\n{title}:\n"+_d_str
+        return msg
+    
+    def _msg_list(self,title,l,limit_n=10):
+        if len(l)<limit_n:
+            msg = f"\n{title}:\n"+pformat(l)
+        else:
+            _l_str = pformat(l[:limit_n])
+            _line = _l_str.split("\n")[-1]
+            _n_space = len(_line)-len(_line.lstrip())
+            _l_str = _l_str[:-1] +" "*_n_space+ f"...{len(l)} in total]"
+            
+            msg = f"\n{title}:\n" + _l_str
+        return msg
+    def _msg_object(self,title,obj):
+        msg = f"\n{title}:\n"+pformat(obj)
+        return msg
     def __str__(self):
         msg = f"Summary(n_errors:{self.n_errors},n_missings:{self.n_missings},n_extras:{self.n_extras})"
-        if self.n_errors<5:
-            msg+="\nerror:\n"+pformat(self.errors)
-            msg+="\nmissing:\n" +pformat(self.missings)
-            msg+="\nextra:\n"+pformat(self.extras)
+        msg+=self._msg_dict("error",self.errors)
+        msg+=self._msg_dict("missing",self.missings)
+        msg+=self._msg_dict("extra",self.extras)
+        for name,value in self.added_fields.items():
+            if isinstance(value,list):
+                msg+=self._msg_list(name,value)
+            elif isinstane(value,dict):
+                msg+=self._msg_dict(name,value)
+            else:
+                msg+=self._msg_object(name,value)
+        
         return msg
     
     @property
@@ -54,7 +100,9 @@ class RunTracer:
         self.cnt_state_calling = 0
         self.states = {
         }
-        
+        self.loaded_state_keys = [] # Not unique, same key may be load for many times.
+        #
+        self.numerical_tolerance_dist_fro = 1e-4 # float zero
         print(f"- Warning: RunTracer class: Currently, n_missing or info:#InOnly is useless. Since result is generate by state calling and wont de;iberately scan all the things in input_dir.")
     
     @property
@@ -93,8 +141,24 @@ class RunTracer:
         return Path(self.output_dir,f"{key}.state").as_posix()
     def get_state_in_fp(self,key):
         return Path(self.input_dir,f"{key}.state").as_posix()
-    def load_state(self,key):
+    
+    @staticmethod
+    def _duplicate_key(i,old_key):
+        return f"{old_key}___{i:03}"
+    def load_state(self,key,*,force_duplicate=False):
+        """
+        When try to load a loaded key, will try _duplicate_key(i,key) by i=1,2,.. to find an available one, and then try to load from disk. It's for the default behaviour of self.state(...).self
+        
+        Use force_duplicate=True to reload with exact {key} even it has been found in self.loaded_state_keys.
+        """
         if self.input_dir is not None:
+            if (not force_duplicate):
+                i=1
+                _key = key
+                while _key in self.loaded_state_keys:
+                    _key = self._duplicate_key(i,key)
+                    i= i+1
+                key=_key
             _p_in = self.get_state_in_fp(key)
             if not Path(_p_in).exists():
                 raise Exception(f"- RuntimeError: load_state({key}): FileNoExist at {_p_in}")
@@ -102,6 +166,7 @@ class RunTracer:
                 print(f"- Load in_state[{key}]: {_p_in}")
                 
                 input_d = torch.load(Path(_p_in).as_posix())
+                self.loaded_state_keys.append(key)
         else:
             raise Exception(f"- RuntimeError: load_state({key}): Require self.in_dir")
         return input_d["value"]
@@ -109,24 +174,17 @@ class RunTracer:
         if self.output_dir is None:
             raise Exception(f"- NotInitializedError: Assign self.output_dir before calling self.state(...).")
         _print = lambda*args: print(f"- RT: [{self.cnt_state_calling:03}] ",*args)
-        _get_fp = self.get_state_out_fp
-        _p = _get_fp(key)
+        _p = self.get_state_out_fp(key)
         _v = value
-        if Path(_p).exists():
-            i = 1
-            old_key = key
-            _get_key = lambda i: f"{old_key}___{i:03}"
-            key = _get_key(i)
-            _p = _get_fp(key)
-            while Path(_p).exists():
-                i=i+1
-                key = _get_key(i)
-                _p = _get_fp(key)
-            _print(f"RuntimeInfo: RunTracer: StateDuplicateKey({old_key}), new_key={key}")
-            _print(f"Save state[{key}]: {_p}")
-            
-        else:
-            _print(f"Save state[{key}]: {_p}")
+        i = 1
+        _key = key
+        while Path(_p).exists():
+            _key = self._duplicate_key(i,key)
+            _p = self.get_state_out_fp(_key)
+            i=i+1
+        key = _key
+        _print(f"Save state[{key}]: {_p}")
+        
         output_d = {
             "key":key,
             "value":_v
@@ -281,7 +339,7 @@ class RunTracer:
             result = {
                 "___ret_type":"Numerical",
                 "type":{"out":type(out_value).__name__,"in":type(in_value).__name__},"pindex":Path(root).as_posix(),
-                "info":"torch.equal"
+                "info":"torch.norm(x,p='fro')"
             }
             if isinstance(out_value,(torch.Tensor,int,float,np.ndarray)) and isinstance(in_value,(torch.Tensor,int,float,np.ndarray)):
                 if isinstance(out_value, (float,int)):
@@ -314,13 +372,10 @@ class RunTracer:
                     result["out_value"] = out_value
                     out_value = out_value.torch.ones_like(in_value)
                     
-                try:
-                    result["dist_fro"] = torch.norm(in_value.float()-out_value.float(),p="fro")
-                except Exception as e:
-                    result["dist_fro"] = f"#Exception: {e}"
+                
                     
                 try:
-                    result["mse_loss"] = torch.nn.functional.mse_loss(in_value.float(),out_value.float()),
+                    result["mse_loss"] = torch.nn.functional.mse_loss(in_value.float(),out_value.float())
                 except Exception as e:
                     result["mse_loss"] = f"#Exception: {e}"
                     
@@ -353,11 +408,15 @@ class RunTracer:
                 except Exception as e:
                     result["equal"] = f"#Exception: {e}"
                 
-                if isinstance(result["equal"],bool):
-                    result["as_bool"] = result["equal"]
-                else:
-                    result["info"]="#EqualOperatorFailed"
+                try:
+                    result["dist_fro"] = torch.norm(in_value.float()-out_value.float(),p="fro")
+                    result["as_bool"] = result["dist_fro"].item()<self.numerical_tolerance_dist_fro
+                except Exception as e:
+                    result["info"] = "#Failed:torch.norm(x,p='fro')"
+                    result["dist_fro"] = f"#Exception: {e}"
                     result["as_bool"] = False
+                    
+
             else:
                 result["info"] = "#MismatchNumericalType"
                 result["as_bool"] = False
@@ -384,6 +443,7 @@ class RunTracer:
                 }
                 all_results[key].update(v["result"])
         summary = self.summarize(all_results)
+        summary.add_field("loaded_states",self.loaded_state_keys)
         return summary,all_results
 
     

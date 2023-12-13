@@ -2,6 +2,7 @@
 
 from functools import wraps
 import numpy as np
+import torch
 func_under_CWC = {}
 def count_when_calling(counter_d:dict={"called":0}):
     def deco(f):
@@ -17,7 +18,7 @@ def gaussian_noise(shape=None,*,CWC_counter_d):
     """
     N(0,1)
     
-    Return ndarray 
+    Return tensor
     
     gaussian_noise() return a float
     """
@@ -26,10 +27,10 @@ def gaussian_noise(shape=None,*,CWC_counter_d):
         n = 1
         for v in shape:
             n = n*v
-        noise = np.random.rand(*shape)
+        noise = torch.rand(shape)
     else:
         n = 1
-        noise = np.random.rand()
+        noise = torch.rand(1).cpu().item()
     
     CWC_counter_d["n_float_sampled"]+=n
     return noise
@@ -48,9 +49,16 @@ def state_for_randomness_check(rt: RunTracer):
     x={0,1,2,3,4}
     """
     for i in range(5):
-        rt.state("state_for_randomness_check__i",i+gaussian_noise())
+        rt.state(f"state_for_randomness_check__{i}",i+gaussian_noise())
     
     
     
+import numpy as np
+import torch
+def save_rng_state(key,rt:RunTracer):
+    rt.state(f"{key}__torch-random-state",torch.get_rng_state())
+    rt.state(f"{key}__numpy-random-state",np.random.get_state())
     
-    
+def load_rng_state(key,rt:RunTracer):
+    torch.set_rng_state(rt.load_state(f"{key}__torch-random-state"))
+    np.random.set_state(rt.load_state(f"{key}__numpy-random-state"))
