@@ -46,9 +46,10 @@ class Summary(JSONDict):
     
     
 class RunTracer:
-    def __init__(self,output_dir:str,input_dir:Optional[str]=None):
+    def __init__(self,output_dir:str,input_dir:Optional[str]=None,*,force_clear_output_dir:bool):
         self.output_dir = output_dir 
         self.input_dir = input_dir
+        self.force_clear_output_dir = force_clear_output_dir
         #
         self.cnt_state_calling = 0
         self.states = {
@@ -65,8 +66,11 @@ class RunTracer:
         if p is not None:
             p = Path(p).as_posix()
             if Path(p).exists():
-                shutil.rmtree(p)
-            Path(p).mkdir(parents=True)
+                if self.force_clear_output_dir:
+                    shutil.rmtree(p)
+                    Path(p).mkdir(parents=True)
+            else:
+                Path(p).mkdir(parents=True)
             self._output_dir = p
         else:
             self._output_dir = None
@@ -85,12 +89,15 @@ class RunTracer:
         else:
             self._input_dir = None
             
-        
+    def get_state_out_fp(self,key):
+        return Path(self.output_dir,f"{key}.state").as_posix()
+    def get_state_in_fp(self,key):
+        return Path(self.input_dir,f"{key}.state").as_posix()
     def state(self,key,value):
         if self.output_dir is None:
             raise Exception(f"- NotInitializedError: Assign self.output_dir before calling self.state(...).")
         _print = lambda*args: print(f"- RT: [{self.cnt_state_calling:03}] ",*args)
-        _get_fp = lambda k:Path(self.output_dir,f"{k}.state")
+        _get_fp = self.get_state_out_fp
         _p = _get_fp(key)
         _v = value
         if Path(_p).exists():
@@ -99,7 +106,7 @@ class RunTracer:
             _get_key = lambda i: f"{old_key}___{i:03}"
             key = _get_key(i)
             _p = _get_fp(key)
-            while _p.exists():
+            while Path(_p).exists():
                 i=i+1
                 key = _get_key(i)
                 _p = _get_fp(key)
@@ -117,8 +124,8 @@ class RunTracer:
         result = None
         summary = None
         if self.input_dir is not None:
-            m = list(Path(self.input_dir).glob(f"{key}.state"))
-            if len(m)==0:
+            _p_in = self.get_state_in_fp(key)
+            if not Path(_p_in).exists():
                 result = {
                     "___ret_type":"Error",
                     "info":"#OnlyOut",
@@ -126,16 +133,7 @@ class RunTracer:
                     "as_bool":True,
                 }
                 _print(f"MissingInputState, key= {key}")
-            elif len(m)>1:
-                result = {
-                    "___ret_type":"Error",
-                    "info":"#MultipleIn",
-                    "pindex":Path(key).as_posix(),
-                    "as_bool":False,
-                }
-                _print(f"RuntimeError: DuplicateInputState, matched: {m}")
             else:
-                _p_in = m[0]
                 _print(f"Input state[{key}]: {_p_in}")
                 
                 input_d = torch.load(Path(_p_in).as_posix())
@@ -313,6 +311,30 @@ class RunTracer:
                     result["mse_loss"] = torch.nn.functional.mse_loss(in_value.float(),out_value.float()),
                 except Exception as e:
                     result["mse_loss"] = f"#Exception: {e}"
+                    
+                try:
+                    result["min"] = {
+                        "in":in_value.min(),"out":out_value.min()}
+                except Exception as e:
+                    result["min"] = f"#Exception: {e}"
+                    
+                try:
+                    result["max"] = {
+                        "in":in_value.max(),"out":out_value.max()}
+                except Exception as e:
+                    result["max"] = f"#Exception: {e}"
+                    
+                try:
+                    result["mean"] = {
+                        "in":in_value.mean(),"out":out_value.mean()}
+                except Exception as e:
+                    result["mean"] = f"#Exception: {e}"
+                    
+                try:
+                    result["std"] = {
+                        "in":in_value.std(),"out":out_value.std()}
+                except Exception as e:
+                    result["std"] = f"#Exception: {e}"
                 
                 try:
                     result["equal"] = torch.equal(out_value,in_value)
@@ -376,10 +398,11 @@ class RunTracer:
         
 import ren_utils
 ren_utils.global_objects["RunTracer"] = None
-def globalRunTracer():
+def globalRunTracer(force_clear_output_dir=False):
     if ren_utils.global_objects["RunTracer"] is None:
         ren_utils.global_objects["RunTracer"] = RunTracer(
             output_dir = None,
-            input_dir = None
+            input_dir = None,
+            force_clear_output_dir=force_clear_output_dir
         )
     return ren_utils.global_objects["RunTracer"]
