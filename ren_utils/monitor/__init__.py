@@ -146,20 +146,28 @@ class RunTracer:
     def clear_loaded_state(self):
         self.loaded_state_keys = []
     @staticmethod
-    def _duplicate_key(i,old_key):
-        return f"{old_key}___{i:03}"
+    def duplicate_key(i:int,old_key):
+        if i==0:
+            return old_key
+        elif i>=1:
+            return f"{old_key}___{i:03}"
+        else:
+            raise Exception(f"RuntimeError: RunTracer.duplicate_key: i=0,1,...")
+    
     def load_state(self,key,*,force_duplicate=False,silence=False):
         """
-        When try to load a loaded key, will try _duplicate_key(i,key) by i=1,2,.. to find an available one, and then try to load from disk. It's for the default behaviour of self.state(...).self
+        When try to load a loaded key, will try duplicate_key(i,key) by i=1,2,.. to find an available one, and then try to load from disk. It's for the default behaviour of self.state(...).self
         
         Use force_duplicate=True to reload with exact {key} even it has been found in self.loaded_state_keys.
+        
+        Return value
         """
         if self.input_dir is not None:
             if (not force_duplicate):
                 i=1
                 _key = key
                 while _key in self.loaded_state_keys:
-                    _key = self._duplicate_key(i,key)
+                    _key = self.duplicate_key(i,key)
                     i= i+1
                 key=_key
             _p_in = self.get_state_in_fp(key)
@@ -201,7 +209,7 @@ class RunTracer:
         i = 1
         _key = key
         while Path(_p).exists():
-            _key = self._duplicate_key(i,key)
+            _key = self.duplicate_key(i,key)
             _p = self.get_state_out_fp(_key)
             i=i+1
         key = _key
