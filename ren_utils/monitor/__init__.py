@@ -142,10 +142,13 @@ class RunTracer:
     def get_state_in_fp(self,key):
         return Path(self.input_dir,f"{key}.state").as_posix()
     
+    
+    def clear_loaded_state(self):
+        self.loaded_state_keys = []
     @staticmethod
     def _duplicate_key(i,old_key):
         return f"{old_key}___{i:03}"
-    def load_state(self,key,*,force_duplicate=False):
+    def load_state(self,key,*,force_duplicate=False,silence=False):
         """
         When try to load a loaded key, will try _duplicate_key(i,key) by i=1,2,.. to find an available one, and then try to load from disk. It's for the default behaviour of self.state(...).self
         
@@ -163,13 +166,32 @@ class RunTracer:
             if not Path(_p_in).exists():
                 raise Exception(f"- RuntimeError: load_state({key}): FileNoExist at {_p_in}")
             else:
-                print(f"- Load in_state[{key}]: {_p_in}")
+                if not silence:
+                    print(f"- Load in_state[{key}]: {_p_in}")
                 
                 input_d = torch.load(Path(_p_in).as_posix())
                 self.loaded_state_keys.append(key)
         else:
-            raise Exception(f"- RuntimeError: load_state({key}): Require self.in_dir")
+            raise Exception(f"- RuntimeError: load_state({key}): Require self.input_dir")
         return input_d["value"]
+    
+    def load_output_state(self,key):
+        """
+        key wont be recorded or any special move on duplicated; Those are for in_state loading.
+        """
+        
+        if self.output_dir is not None:
+            _p_out = self.get_state_out_fp(key)
+            if not Path(_p_out).exists():
+                raise Exception(f"- RuntimeError: load_output_state({key}): FileNoExist at {_p_out}")
+            else:
+                print(f"- Load out_state[{key}]: {_p_out}")
+                
+                output_d = torch.load(Path(_p_out).as_posix())
+        else:
+            raise Exception(f"- RuntimeError: load_output_state({key}): Require self.output_dir")
+        return output_d["value"]
+    
     def state(self,key,value):
         if self.output_dir is None:
             raise Exception(f"- NotInitializedError: Assign self.output_dir before calling self.state(...).")
@@ -339,7 +361,6 @@ class RunTracer:
             result = {
                 "___ret_type":"Numerical",
                 "type":{"out":type(out_value).__name__,"in":type(in_value).__name__},"pindex":Path(root).as_posix(),
-                "info":"torch.norm(x,p='fro')"
             }
             if isinstance(out_value,(torch.Tensor,int,float,np.ndarray)) and isinstance(in_value,(torch.Tensor,int,float,np.ndarray)):
                 if isinstance(out_value, (float,int)):
@@ -402,6 +423,12 @@ class RunTracer:
                         "in":in_value.std(),"out":out_value.std()}
                 except Exception as e:
                     result["std"] = f"#Exception: {e}"
+                    
+                try:
+                    result["dtype"] = {
+                        "in":str(in_value.dtype),"out":str(out_value.dtype)}
+                except Exception as e:
+                    result["dtype"] = f"#Exception: {e}"
                 
                 try:
                     result["equal"] = torch.equal(out_value,in_value)
@@ -409,10 +436,11 @@ class RunTracer:
                     result["equal"] = f"#Exception: {e}"
                 
                 try:
+                    result["info"] = f"torch.norm(x,p='fro'), tol={self.numerical_tolerance_dist_fro}"
                     result["dist_fro"] = torch.norm(in_value.float()-out_value.float(),p="fro")
                     result["as_bool"] = result["dist_fro"].item()<self.numerical_tolerance_dist_fro
                 except Exception as e:
-                    result["info"] = "#Failed:torch.norm(x,p='fro')"
+                    result["info"] = f"#Failed:torch.norm(x,p='fro'), tol={self.numerical_tolerance_dist_fro}"
                     result["dist_fro"] = f"#Exception: {e}"
                     result["as_bool"] = False
                     

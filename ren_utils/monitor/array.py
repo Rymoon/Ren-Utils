@@ -27,10 +27,10 @@ def gaussian_noise(shape=None,*,CWC_counter_d):
         n = 1
         for v in shape:
             n = n*v
-        noise = torch.rand(shape)
+        noise = torch.randn(shape)
     else:
         n = 1
-        noise = torch.rand(1).cpu().item()
+        noise = torch.randn(1).cpu().item()
     
     CWC_counter_d["n_float_sampled"]+=n
     return noise
@@ -62,3 +62,37 @@ def save_rng_state(key,rt:RunTracer):
 def load_rng_state(key,rt:RunTracer):
     torch.set_rng_state(rt.load_state(f"{key}__torch-random-state"))
     np.random.set_state(rt.load_state(f"{key}__numpy-random-state"))
+    
+    
+    
+def RGB2BGR(a,i:int):
+    """
+    RGB2BGR on dim-i
+    """
+    if isinstance(a,torch.Tensor):
+        a_ = torch.swapaxes(a,0,i)
+        a_ = torch.stack([a_[2,...],a_[1,...],a_[0,...]],dim=0)
+        a = torch.swapaxes(a_,0,i)
+    elif isinstance(a,np.ndarray):
+        a_ = np.swapaxes(a,0,i)
+        a_ = np.stack((a_[2,...],a_[1,...],a_[0,...]),axis=0)
+        a = np.swapaxes(a_,0,i)
+    else:
+        raise Exception(f"NotSupportedType {type(a)}")
+    return a
+    
+def BGR2RGB(a,i):
+    return RGB2BGR(a,i)
+
+
+def PosImg2RealImg(a):
+    """
+    [-1,1] to [0,1]
+    """
+    return (a*2)-1
+
+def RealImg2PosImg(a):
+    """
+    [0,1] to [-1,1]
+    """
+    return (a+1)/2
