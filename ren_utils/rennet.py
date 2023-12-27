@@ -792,7 +792,25 @@ def format_by_re(string_template:str,d:dict,**kwargs):
     s2=  string_template.format(**dargs)
     return s2
 
-
+def get_function_posargs(f):
+    return inspect.getfullargspec(f)[0]
+def compare_function_posargs(target,standard):
+    """
+    - standard: function
+    - target: function
+    
+    Only check explict position args, ignore *args, **kargs,or keyword arg;
+    
+    The order should match, too;
+    
+    Especially useful to check the method signature of object and class, if you use a prototype-like class and MethodType to rebind methods of instances (clone of prototype).
+    
+    return bool
+    """
+    arglist_standard = inspect.getfullargspec(standard)[0]
+    arglist = inspect.getfullargspec(target)[0]
+    
+    return arglist_standard == arglist
 # PLOT config
 import json
 from pathlib import PosixPath
