@@ -176,3 +176,23 @@ class ElapsedTime(pl.Callback):
         save_yaml(p,d)
         print("- Save elapsed time:",p.as_posix())
         return super().on_fit_end(trainer, pl_module)
+from typing import Callable
+def restore(pckpt,pconfig, config_parser:Callable,dm, gpuid:int, cfn:str):
+    """plog: path to log;
+    {plog}/checkpoints/*.ckpt
+    {plog}/config.yaml
+
+    config_parser: Callabe --> trainer, model
+    """
+    assert Path(pckpt).exists()
+    ckpt = torch.load(pckpt.as_posix())
+
+    pconfig = Path(pconfig)
+    with open(pconfig,"r") as f:
+        config = yaml.load(f,Loader=RenNetLoader)
+    
+    trainer, model,runner = call_by_inspect(config_parser, config, gpuid = gpuid, cfn = cfn,dm=dm)
+    model.load_state_dict(ckpt["state_dict"])
+    model.to(torch.device(f"cuda:{gpuid}"))
+
+    return model, trainer
