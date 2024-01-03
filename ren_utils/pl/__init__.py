@@ -84,7 +84,20 @@ def save_yaml(p,d:dict):
         os.remove(p)
     with open(p,"w") as f:
         yaml.dump(d,f,Dumper=RenNetDumper)
-    print(f"- Save yaml: {p}")
+    
+
+def load_yaml(p):
+    """
+    Return None if not exists
+    """
+    if Path(p).exists():
+            
+        with open(Path(p),"r") as _f:
+            _d = yaml.load(_f,Loader=RenNetLoader)
+        return _d
+    else:
+        return None
+
 
 def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,note={}):
     """
@@ -98,6 +111,8 @@ def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,comp
     for title,(compiler,config) in configs.items():
         if compiler not in compiler_dict:
             raise KeyError(f"Function `{compiler}` should be found as a key in compiler_dict.")
+        config["_compiler"] = compiler
+        config["_compiler__setter"] = "ren_utils.pl.run_configs"
         try:
             trainer, model, runner = call_by_inspect(compiler_dict[compiler], config, gpuid = gpuid, cfn = f"{cfn}_{title}",dm=dm)
         except Exception as e:
