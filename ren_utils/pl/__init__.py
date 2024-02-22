@@ -199,15 +199,19 @@ def restore(pckpt,pconfig, compiler:Callable,dm, gpuid:int, cfn:str):
 
     compiler: Callable --> trainer, model, runner
     """
-    assert Path(pckpt).exists()
-    ckpt = torch.load(pckpt.as_posix())
+    if pckpt is not None:
+        assert Path(pckpt).exists()
+        ckpt = torch.load(pckpt.as_posix())
+    else:
+        ckpt = None
 
     pconfig = Path(pconfig)
     with open(pconfig,"r") as f:
         config = yaml.load(f,Loader=RenNetLoader)
     
     trainer, model,runner = call_by_inspect(compiler, config, gpuid = gpuid, cfn = cfn,dm=dm)
-    model.load_state_dict(ckpt["state_dict"])
+    if ckpt is not None:
+        model.load_state_dict(ckpt["state_dict"])
     model.to(torch.device(f"cuda:{gpuid}"))
 
     return model, trainer
