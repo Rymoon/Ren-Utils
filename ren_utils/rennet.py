@@ -731,7 +731,7 @@ def dargs_for_calling(f:Callable,d:dict):
             fd[k] = d[k]
     
     return fd
-
+import inspect
 def call_by_inspect(f:Callable,d:dict,**kwargs):
     """
     dargs = dargs_for_calling(f,d))
@@ -742,7 +742,18 @@ def call_by_inspect(f:Callable,d:dict,**kwargs):
     """
     dargs = dargs_for_calling(f,d)
     dargs.update(kwargs)
-    return f(**dargs)
+    try:
+        r = f(**dargs)
+    except Exception as e:
+        if hasattr(f,"__call__"):
+            f_ = f.__call__
+        else:
+            f_ = f 
+        fp = inspect.getsourcefile(f_)
+        flineno = inspect.getsourcelines(f_)[1]
+        print(f" - call_by_inspect, f defined at: {fp}, line {flineno}")
+        raise e
+    return r
 
 def as_int(s):
     """

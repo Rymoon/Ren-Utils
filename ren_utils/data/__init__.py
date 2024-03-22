@@ -57,14 +57,8 @@ from torch.utils.data import DataLoader, Dataset
 from typing import overload
 from ren_utils.rennet import Errmsg
 
-class ImageDataset(Dataset,Errmsg):
+class MyDataset(Dataset,Errmsg):
     """
-    To subclass, please implement:
-    + an __init__(); see ImageDataset.limit for reason
-    
-    * If layers is None, then it's a placeholder dataset, wont be initialized, i.e., call self.init(...);
-    * else, layers[0] must be a valid List[str] in any case; Others can be [] or None.
-    
     """
     @overload
     def __init__(self):
@@ -74,7 +68,7 @@ class ImageDataset(Dataset,Errmsg):
     def __init__(self, layers:List[List[str|Path]]|Any, resize_size: None|Tuple[int,int]=None):
         """
         By default, 
-        1. self._prepare_datapair(**layers) to create matched data-pair;
+        1. self.prepare_datapair(**layers) to create matched data-pair;
         2. _transform(layers,i,j) take:
         
             layers = [layer0,layer1,...]
@@ -83,7 +77,10 @@ class ImageDataset(Dataset,Errmsg):
         Override these to change behaviour.
         [# FUTURE] Create a h5 version at first run;
         """
-    def __init__(self, layers:List[List[str|Path]]=None, resize_size: None|Tuple[int,int]=None):
+    def __init__(self, layers:List[List[str|Path]]=None, resize_size: None|Tuple=None):
+        """
+        resize_size: tuple-shape; For example, for image, it is (H,W)
+        """
         Dataset.__init__(self)
         Errmsg.__init__(self)
         # List of files
@@ -104,47 +101,29 @@ class ImageDataset(Dataset,Errmsg):
                 layers[0][0]
             except Exception as e:
                 # layers[0] should be valid list
-                print(f"* ImageDataset.__init__::errcode={errcode}")
+                print(f"* MyDataset.__init__::errcode={errcode}")
                 raise e
             
             self.init(layers, resize_size)
-    
-    def init(self,layers,resize_size):
+    def init(layers,resize_size):
         """
-        1. _prepare_datapair
+        Override this!
+        
+        1. prepare_datapair
         2. transform
         3. length
         """
-        # Override paired_layers if not the case.
-        self.paired_layers = self._prepare_datapair(layers) # type: List[List[str|Path]]
+        self.paired_layers = self.prepare_datapair(layers)
+        self._trains = [] # a list of callable f, o=f(o)
+        self._length = len(self.paired_layers[0]) 
         
-        
-
-        # Default transformas: 
-        #   1. Image.open(path) 
-        #   2. torchvision:
-        #       - resize 
-        #       - convert to tensor, i.e.,  PIL image [0,255] to float tensor[0,1]
-        # Called at __getitem__(index)
-        
-        # transform (default)
-        self._trans = [
-            torchvision.transforms.Compose(
-            ([torchvision.transforms.Resize(resize_size)] if resize_size is not None else [])  # (input: PIL, NOT ndarray)
-            +[torchvision.transforms.ToTensor(),]
-            ),# (input: PIL or ndarray)[0,255] to [0,1], floatTensor
-        ]
-        
-        
-        self._length = len(self.paired_layers[0])
-        
-    def transform(self, layers:List[List[str]],i,j):
+    def transform(self, layers:List[List[str]],i,j,fopen):
         """
         Default transformas: 
-          1. Image.open(path) 
-          2. torchvision: (self._trans)
+          1. o=fopen(path) 
+          2. for _t in self._trans:
+            o = _t(o) 
               - resize 
-              - convert to tensor, i.e.,  PIL image [0,255] to float tensor[0,1]
         Called at __getitem__(index)
         """
         if layers[i] is None:
@@ -157,10 +136,8 @@ class ImageDataset(Dataset,Errmsg):
             for _t in self._trans:
                 o = _t(o)
             return o
-        
-
- 
-    def _prepare_datapair(self,layers):
+    
+    def prepare_datapair(self,layers):
         """
         1. Loop: Follow the order of layers[0],
         2. Match: Search in other layers[i], for filename of the same stem.
@@ -188,7 +165,7 @@ class ImageDataset(Dataset,Errmsg):
             for i in _layers_i:
                 if len(layers[0]) != len(layers[i]):
                     msg = f"length of layers[.] not equal, 0:{len(layers[0])}, {i}:{len(layers[i])}"
-                    self.errmsg_append(msg,"_prepare_datapair - length")
+                    self.errmsg_append(msg,"prepare_datapair - length")
         
             
             stem_ld = [None]*_layers_n
@@ -206,12 +183,12 @@ class ImageDataset(Dataset,Errmsg):
                         paired_layers[i].append(stem_ld[i][stem]) 
                     else:
                         paired_layers[i].append(None)
-                        self.errmsg_append(("Missing",(i,j,stem)),"_prepare_datapair - pair") 
+                        self.errmsg_append(("Missing",(i,j,stem)),"prepare_datapair - pair") 
         else:
             paired_layers = layers
         
         self.errmsg_printall()
-        self.errmsg_raise_if(["_prepare_datapair - pair"])
+        self.errmsg_raise_if(["prepare_datapair - pair"])
         return paired_layers
 
     def __len__(self):
@@ -237,8 +214,6 @@ class ImageDataset(Dataset,Errmsg):
             out = self.transform(self.paired_layers,i,j)             
             item.append(out)
         return item
-    
-
     def limit(self,n_limit:int|None):
         o= type(self)()
         o.transform = self.transform
@@ -250,3 +225,59 @@ class ImageDataset(Dataset,Errmsg):
             o._length = min(len(self.paired_layers[0]), n_limit)
 
         return o
+    
+
+    
+class ImageDataset(MyDataset):
+    """
+    To subclass, please implement:
+    + an __init__(); see ImageDataset.limit for reason
+    
+    * If layers is None, then it's a placeholder dataset, wont be initialized, i.e., call self.init(...);
+    * else, layers[0] must be a valid List[str] in any case; Others can be [] or None.
+    
+    """
+    
+    def init(self,layers,resize_size):
+        """
+        1. prepare_datapair
+        2. transform
+        3. length
+        """
+        # Override paired_layers if not the case.
+        self.paired_layers = self.prepare_datapair(layers) # type: List[List[str|Path]]
+        
+        
+
+        # Default transformas: 
+        #   1. Image.open(path) 
+        #   2. torchvision:
+        #       - resize 
+        #       - convert to tensor, i.e.,  PIL image [0,255] to float tensor[0,1]
+        # Called at __getitem__(index)
+        
+        # transform (default)
+        self._trans = [
+            torchvision.transforms.Compose(
+            ([torchvision.transforms.Resize(resize_size)] if resize_size is not None else [])  # (input: PIL, NOT ndarray)
+            +[torchvision.transforms.ToTensor(),]
+            ),# (input: PIL or ndarray)[0,255] to [0,1], floatTensor
+        ]
+        
+        
+        self._length = len(self.paired_layers[0])
+        
+    def transform(self, layers:List[List[str]],i,j,fopen=Image.open):
+        """
+        Default transformas: 
+          1. Image.open(path) 
+          2. torchvision: (self._trans)
+              - resize 
+              - convert to tensor, i.e.,  PIL image [0,255] to float tensor[0,1]
+        Called at __getitem__(index)
+        """
+        return MyDataset.transform(self,layers,i,j,fopen=fopen)
+
+
+class CMDataset(Dataset,Errmsg):
+    pass
