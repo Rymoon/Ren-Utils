@@ -130,9 +130,8 @@ class MyDataset(Dataset,Errmsg):
             return None
         else:
             p = layers[i][j] # str(path)
-            p = Path(p)
-            assert p.exists(), p.as_posix()
-            o = Image.open(p)
+            
+            o = fopen(p)
             for _t in self._trans:
                 o = _t(o)
             return o
@@ -214,6 +213,7 @@ class MyDataset(Dataset,Errmsg):
             out = self.transform(self.paired_layers,i,j)             
             item.append(out)
         return item
+    
     def limit(self,n_limit:int|None):
         o= type(self)()
         o.transform = self.transform
