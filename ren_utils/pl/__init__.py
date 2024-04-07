@@ -102,6 +102,9 @@ def load_yaml(p):
         return _d
     else:
         return None
+    
+    
+
 
 
 def run_configs(configs:dict, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_dict:dict,note={}):

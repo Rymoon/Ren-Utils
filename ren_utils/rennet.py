@@ -1140,6 +1140,21 @@ def merge_dumpers(target:yaml.SafeDumper, from_dumpers:List[yaml.SafeDumper]):
     return target
 
 
+
+import base64
+import io
+import numpy as np
+
+def numpy_arr_to_zip_str(arr):
+    f = io.BytesIO()
+    np.savez_compressed(f, arr=arr)
+    return base64.b64encode(f.getvalue())
+
+def numpy_zip_str_to_arr(zip_str):
+    f = io.BytesIO(base64.b64decode(zip_str))
+    return np.load(f)['arr']
+
+import numpy
 class RenNetDumper(yaml.SafeDumper):
     def represent_posix_path(self, data:PosixPath, tag:str):
         return self.represent_scalar(tag, str(data))
@@ -1151,6 +1166,12 @@ class RenNetDumper(yaml.SafeDumper):
             "dtype":str(data.dtype),
             "data":totuple(totuple(data)),
         })
+        
+    def represent_ndarray(self,data:numpy.ndarray, tag:str):
+        s = numpy_arr_to_zip_str(data)
+        return self.represent_mapping(tag,{
+            "data":s,
+        })
 
 add_representers(RenNetDumper,list(vars(RenNetDumper).values()),prefix="represent")
 
@@ -1161,6 +1182,10 @@ class RenNetLoader(yaml.SafeLoader):
         d= self.construct_mapping(node, deep=True)
         tsr = torch.tensor(d["data"],dtype=d["dtype"])
         return tsr
+    def construct_ndarray(self,node, tag:str):
+        d= self.construct_mapping(node, deep=True)
+        arr = numpy_zip_str_to_arr(d["data"])
+        return arr
 
 add_constructors(RenNetLoader,list(vars(RenNetLoader).values()), prefix="constructor")
 
