@@ -51,6 +51,7 @@ ipython_config.py
 __pypackages__/
 
 # Environments
+*.code-workspace
 .env
 .venv
 env/
