@@ -2,7 +2,7 @@
 import math
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import numpy as np
 import pytorch_lightning as pl
@@ -10,12 +10,12 @@ import skimage
 import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm, trange
-
-from typing import List,Tuple,Optional
-#
-from ren_utils.rennet import get_callable_definition_location,print_WhiteRed_string
-# PLOT runner
+import yaml
 from pprint import pformat
+
+#
+from ren_utils.rennet import get_callable_definition_location,print_WhiteRed_string,RenNetDumper,RenNetJSONEncoder,RenNetLoader
+# PLOT runner
 
 
 def configs_by_title(title,*,p_configs,config_override=[]):
@@ -78,32 +78,9 @@ def run_by_title(title, gpuid:int,cfn:str,dm:pl.LightningDataModule,*,compiler_d
     return run_configs(configs, gpuid, cfn, dm,compiler_dict=compiler_dict,note=note)
 
 
-import yaml
-import os
-from ren_utils.rennet import call_by_inspect,getitems_as_dict,RenNetDumper,RenNetLoader
 
-def save_yaml(p,d:dict):
-    p = Path(p)
-    p.parent.mkdir(exist_ok=True,parents=True)
-    if p.exists():
-        os.remove(p)
-    with open(p,"w") as f:
-        yaml.dump(d,f,Dumper=RenNetDumper)
     
-
-def load_yaml(p):
-    """
-    Return None if not exists
-    """
-    if Path(p).exists():
-            
-        with open(Path(p),"r") as _f:
-            _d = yaml.load(_f,Loader=RenNetLoader)
-        return _d
-    else:
-        return None
-    
-    
+from ren_utils.rennet import save_yaml,load_yaml
 
 
 

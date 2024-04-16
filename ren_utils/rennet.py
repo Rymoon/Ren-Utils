@@ -1190,7 +1190,29 @@ class RenNetLoader(yaml.SafeLoader):
 add_constructors(RenNetLoader,list(vars(RenNetLoader).values()), prefix="constructor")
 
 
+import yaml
+import os
 
+def save_yaml(p,d:dict):
+    p = Path(p)
+    p.parent.mkdir(exist_ok=True,parents=True)
+    if p.exists():
+        os.remove(p)
+    with open(p,"w") as f:
+        yaml.dump(d,f,Dumper=RenNetDumper)
+    
+
+def load_yaml(p):
+    """
+    Return None if not exists
+    """
+    if Path(p).exists():
+            
+        with open(Path(p),"r") as _f:
+            _d = yaml.load(_f,Loader=RenNetLoader)
+        return _d
+    else:
+        return None
 
 
 from pathlib import Path
@@ -1202,9 +1224,20 @@ def get_configs_path(pkg, env__file__):
     configs_path.parent.mkdir(parents=True,exist_ok=True)
     return configs_path
 
+def get_valid_configs(configs_path):
+    d = load_yaml(configs_path)
+    return list(d["experiments"].keys())
+
 def get_root_Results(pkg):
     root_pkg = Path(pkg.__file__).parent
     root_Results = Path(root_pkg.parent,"Results")
     assert (root_Results).exists(),f"Results folder not exists. Create of softlink it: {root_Results}"
     
     return root_Results
+
+def get_root_Datasets(pkg):
+    root_pkg = Path(pkg.__file__).parent
+    root_Datasets = Path(root_pkg.parent,"Datasets")
+    assert (root_Datasets).exists(),f"Datasets folder not exists. Create of softlink it: {root_Datasets}"
+    
+    return root_Datasets
