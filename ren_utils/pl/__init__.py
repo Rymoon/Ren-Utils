@@ -586,7 +586,9 @@ class RestoreModel:
     
     def set_compiler_by_name(self,name,py_script):
         """
-        py_script: the `.py` file contained the compiler object/function.
+        py_script: Object. The `.py` file contained the compiler object/function.
+        
+        Assume name in vars(py_script), towards the compiler.
         """
         try:
             compiler = getattr(py_script,name)
@@ -596,6 +598,9 @@ class RestoreModel:
         self.compiler = compiler
         
     def set_compiler_by_config(self,config=None,py_script=None):
+        """
+        - py_script: Object; A .py file. See `class RestoreModel.set_compiler_by_name`
+        """
         assert py_script is not None
         if config is None:
             config = self.config
@@ -654,17 +659,19 @@ class RestoreModel:
 def load_models(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=None,py_script=None,config_override=[],comp_env_kwargs={}):
     """
     - ckpt_filter_f(fullpath_to_ckpt)-> bool
-    config_override = [(key,value),(key_list,value),...]
-    Return: List of RestoreModel
+    - config_override = [(key,value),(key_list,value),...]
+    - py_script: Object; A .py file. See `class RestoreModel.set_compiler_by_name`
+    - Return: List of RestoreModel
     """
     return list(load_models_lazy(rsv_list,with_ckpt,ckpt_filter_f=ckpt_filter_f,py_script=py_script,config_override=config_override,comp_env_kwargs=comp_env_kwargs))
 
 def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=None,py_script=None,config_override=[],comp_env_kwargs={}):
     """
     - ckpt_filter_f(fullpath_to_ckpt)-> bool
-    config_override = [(key_l,value),...]
-    key_l = [key,...] # if is List (Not tuple!)
-    Return:  Iterator of RestoreModel
+    - config_override = [(key_l,value),...]
+    - key_l = [key,...] # if is List (Not tuple!)
+    - py_script: Object; A .py file. See `class RestoreModel.set_compiler_by_name`
+    - Return:  Iterator of RestoreModel
     """
     assert py_script is not None
     assert "gpuid" in comp_env_kwargs
@@ -693,29 +700,44 @@ def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter
         
         yield rm
         
-            
-            
-from typing import Callable
-def restore(pckpt,pconfig, compiler:Callable,dm, gpuid:int, cfn:str):
-    """plog: path to log;
-    {plog}/checkpoints/*.ckpt
-    {plog}/config.yaml
-
-    compiler: Callable --> trainer, model, runner
+def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int):
     """
-    if pckpt is not None:
-        assert Path(pckpt).exists()
-        ckpt = torch.load(pckpt.as_posix())
-    else:
-        ckpt = None
-
-    pconfig = Path(pconfig)
-    with open(pconfig,"r") as f:
-        config = yaml.load(f,Loader=RenNetLoader)
-    
-    trainer, model,runner = call_by_inspect(compiler, config, gpuid = gpuid, cfn = cfn,dm=dm)
-    if ckpt is not None:
-        model.load_state_dict(ckpt["state_dict"])
-    model.to(torch.device(f"cuda:{gpuid}"))
-
-    return model, trainer
+    py_script: Object, a python module, for `.load_models`;
+    Assume `name:str` in `vars(py_script)`, towards compiler function/callable instance;
+    """
+    rm = None
+    for rsv in walk_in_logs(root_results,lambda fname:filter_f(fname)):   
+        rm = load_models([rsv],False,ckpt_filter_f= lambda:False,py_script=py_script,comp_env_kwargs={
+            "gpuid":gpuid,
+            "cfn":"ddpm_test_temp",
+            })[0]
+        print(f"* Model type: ",type(rm.model))
+        print(f"* rsv.root:", rsv.root)
+        break
+    return rm,rsv
+            
+# # The Old version seems never be used
+# from typing import Callable
+# def restore(pckpt,pconfig, compiler:Callable,dm, gpuid:int, cfn:str):
+#     """plog: path to log;
+#     {plog}/checkpoints/*.ckpt
+#     {plog}/config.yaml
+# 
+#     compiler: Callable --> trainer, model, runner
+#     """
+#     if pckpt is not None:
+#         assert Path(pckpt).exists()
+#         ckpt = torch.load(pckpt.as_posix())
+#     else:
+#         ckpt = None
+# 
+#     pconfig = Path(pconfig)
+#     with open(pconfig,"r") as f:
+#         config = yaml.load(f,Loader=RenNetLoader)
+#     
+#     trainer, model,runner = call_by_inspect(compiler, config, gpuid = gpuid, cfn = cfn,dm=dm)
+#     if ckpt is not None:
+#         model.load_state_dict(ckpt["state_dict"])
+#     model.to(torch.device(f"cuda:{gpuid}"))
+# 
+#     return model, trainer
