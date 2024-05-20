@@ -1194,6 +1194,10 @@ import yaml
 import os
 
 def save_yaml(p,d:dict):
+    """
+    Rais exception if d is None;
+    """
+    assert d is not None,f"- save_yaml: the dict to be saved is None"
     p = Path(p)
     p.parent.mkdir(exist_ok=True,parents=True)
     if p.exists():
@@ -1241,3 +1245,34 @@ def get_root_Datasets(pkg):
     assert (root_Datasets).exists(),f"Datasets folder not exists. Create of softlink it: {root_Datasets}"
     
     return root_Datasets
+
+
+from copy import deepcopy
+
+def merge_dict_of_dicts(*dicts):
+    assert len(dicts) >=2
+    if len(dicts)==2:
+        return merge_two_dict_of_dicts(*dicts)
+    else:
+        return merge_two_dict_of_dicts(merge_dict_of_dicts(*dicts[:-1]),dicts[-1])
+
+def merge_two_dict_of_dicts(x:dict, y:dict):
+    z = {}
+    overlapping_keys = x.keys() & y.keys()
+    for key in overlapping_keys:
+        z[key] = merge_dict_of_dicts(x[key], y[key])
+    for key in x.keys() - overlapping_keys:
+        z[key] = deepcopy(x[key])
+    for key in y.keys() - overlapping_keys:
+        z[key] = deepcopy(y[key])
+    return z
+
+def merge_dict_by_update(*dict_args):
+    """
+    Given any number of dictionaries, shallow copy and merge into a new dict,
+    precedence goes to key-value pairs in latter dictionaries.
+    """
+    result = {}
+    for dictionary in dict_args:
+        result.update(dictionary)
+    return result
