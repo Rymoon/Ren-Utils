@@ -276,6 +276,7 @@ class ResolveDirtree:
             self.root = Path(Path(self.root).parent,f"version_{version}").as_posix()
         else:
             raise Exception(f"- RuntimeError: root_resolve: {self.root}")
+        return self
         
     def get_version(self):
         return int(Path(self.root).parts[-1][len("version_"):])
@@ -500,7 +501,6 @@ class ResolveDirtree:
         return d
     
     def get_config(self):
-        import mha8.apps.DecNet.dec_running_h # will add things to RenNetLoader
         p = Path(self.root,"config.yaml")
         if not p.exists():
             return None
@@ -568,7 +568,7 @@ def walk_in_logs(p_results,filter_f=lambda _: True):
         for ver in ver_list:
             rsvr_ = ResolveDirtree(e_root)
             rsvr_.root_resolve(ver)
-            yield rsvr
+            yield rsvr_
             
 
 from ren_utils.rennet import call_by_inspect,getitems_as_dict,get_root_Results

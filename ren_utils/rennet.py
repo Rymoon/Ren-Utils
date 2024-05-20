@@ -1187,7 +1187,7 @@ class RenNetLoader(yaml.SafeLoader):
         arr = numpy_zip_str_to_arr(d["data"])
         return arr
 
-add_constructors(RenNetLoader,list(vars(RenNetLoader).values()), prefix="constructor")
+add_constructors(RenNetLoader,list(vars(RenNetLoader).values()), prefix="construct")
 
 
 import yaml
