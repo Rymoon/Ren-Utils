@@ -277,6 +277,9 @@ class ResolveDirtree:
         else:
             raise Exception(f"- RuntimeError: root_resolve: {self.root}")
         
+    def get_version(self):
+        return int(Path(self.root).parts[-1][len("version_"):])
+        
     def has_ckpt(self):
         """
         If ckpt saved.
@@ -563,7 +566,8 @@ def walk_in_logs(p_results,filter_f=lambda _: True):
         rsvr = ResolveDirtree(e_root)
         ver_list = rsvr.get_exists_versions()
         for ver in ver_list:
-            rsvr.root_resolve(ver)
+            rsvr_ = ResolveDirtree(e_root)
+            rsvr_.root_resolve(ver)
             yield rsvr
             
 
