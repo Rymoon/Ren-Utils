@@ -1216,6 +1216,7 @@ def load_yaml(p):
             _d = yaml.load(_f,Loader=RenNetLoader)
         return _d
     else:
+        raise Exception(f"{p} not exists.")
         return None
 
 
