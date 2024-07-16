@@ -719,7 +719,7 @@ def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter
         
         yield rm
         
-def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int,*,version=None):
+def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int,cfn:str="ddpm_test_temp",*,version=None):
     """
     py_script: Object, a python module, for `.load_models`;
     Assume `name:str` in `vars(py_script)`, towards compiler function/callable instance;
@@ -745,7 +745,7 @@ def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int,*,version=None)
             
         rm = load_models([rsv],False,ckpt_filter_f= lambda:False,py_script=py_script,comp_env_kwargs={
             "gpuid":gpuid,
-            "cfn":"ddpm_test_temp",
+            "cfn":cfn,
             })[0]
         print(f"* Model type: ",type(rm.model))
         print(f"* rsv.root:", rsv.root)
