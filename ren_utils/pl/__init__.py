@@ -556,7 +556,7 @@ class ResolveDirtree:
 from tqdm import tqdm,trange
 def walk_in_logs(p_results,filter_f=lambda _: True):
     """
-    Yield resolver
+    Yield resolver, walking on all versions
     
     Have a trange inside!
     """
@@ -708,6 +708,8 @@ def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int):
     """
     py_script: Object, a python module, for `.load_models`;
     Assume `name:str` in `vars(py_script)`, towards compiler function/callable instance;
+    
+    For a specific version, using set version
     """
     rm = None
     for rsv in walk_in_logs(root_results,lambda fname:filter_f(fname)):   
