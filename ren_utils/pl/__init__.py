@@ -225,6 +225,12 @@ import torch
 import pytorch_lightning as pl
 class ResolveDirtree:
     """
+    
+    ### version
+    root_resolve(version=0)->self
+    get_exists_versions()->[int] or []
+    get_version()->int
+    
     """
     def __init__(self,root):
         self.data = {}
@@ -323,6 +329,7 @@ class ResolveDirtree:
         return True
     
     def get_exists_versions(self):
+        """Return List[int] or []"""
         root = Path(self.root)
         root_v = root
         if "version" in root.stem:
@@ -554,9 +561,11 @@ class ResolveDirtree:
         self.runner = runner
         
 from tqdm import tqdm,trange
-def walk_in_logs(p_results,filter_f=lambda _: True):
+def walk_in_logs(p_results,filter_f=lambda _: True,*,flatten_all_versions=True):
     """
-    Yield resolver, walking on all versions
+    Yield resolver, walking on all versions (default,flatten_all_versions=True);
+    
+    If not flatten_all_versions, only return the very first existing version of each experiment.
     
     Have a trange inside!
     """
@@ -565,10 +574,16 @@ def walk_in_logs(p_results,filter_f=lambda _: True):
         e_root = Path(e_p_list[i])
         rsvr = ResolveDirtree(e_root)
         ver_list = rsvr.get_exists_versions()
-        for ver in ver_list:
-            rsvr_ = ResolveDirtree(e_root)
-            rsvr_.root_resolve(ver)
-            yield rsvr_
+        if flatten_all_versions:
+            for ver in ver_list:
+                rsvr_ = ResolveDirtree(e_root)
+                rsvr_.root_resolve(ver)
+                yield rsvr_
+        else:
+            if len(ver_list)>0:
+                rsvr_ = ResolveDirtree(e_root)
+                rsvr_.root_resolve(ver_list[0])
+                yield rsvr_
             
 
 from ren_utils.rennet import call_by_inspect,getitems_as_dict,get_root_Results
@@ -667,7 +682,7 @@ def load_models(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=No
     - py_script: Object; A .py file. See `class RestoreModel.set_compiler_by_name`
     - Return: List of RestoreModel
     """
-    return list(load_models_lazy(rsv_list,with_ckpt,ckpt_filter_f=ckpt_filter_f,py_script=py_script,config_override=config_override,comp_env_kwargs=comp_env_kwargs))
+    return list(load_models_lazy(rsv_list,with_ckpt,ckpt_filter_f=ckpt_filter_f,py_script=py_script,config_override=config_override,comp_env_kwargs=comp_env_kwargs),versions=versions)
 
 def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=None,py_script=None,config_override=[],comp_env_kwargs={}):
     """
@@ -704,15 +719,27 @@ def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter
         
         yield rm
         
-def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int):
+def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int,*,version=None):
     """
     py_script: Object, a python module, for `.load_models`;
     Assume `name:str` in `vars(py_script)`, towards compiler function/callable instance;
     
-    For a specific version, using set version
-    """
+    Get rm,rsv of all experiments(filter_f) and all versions.
+    
+    Without ckpt loading.
+    
+    Use version=int to load a specific version. If not availabel, raise exception. 
+    
+    If version=None, load the very first version of the experiment that filter_f(.)== True    """
     rm = None
-    for rsv in walk_in_logs(root_results,lambda fname:filter_f(fname)):   
+    for rsv in walk_in_logs(root_results,lambda fname:filter_f(fname),flatten_all_versions=False):  
+        ver_list = rsv.get_exists_versions() 
+        if version is not None:
+            if version not in ver_list:
+                raise Exception(f" - Runtime Error: version {version} not in existing version list: of the exname={rsv.get_expr_name()}. Versions list= {ver_list}")
+            else:
+                rsv.root_resolve(version)
+            
         rm = load_models([rsv],False,ckpt_filter_f= lambda:False,py_script=py_script,comp_env_kwargs={
             "gpuid":gpuid,
             "cfn":"ddpm_test_temp",
