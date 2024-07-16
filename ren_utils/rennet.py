@@ -6,13 +6,10 @@ from pathlib import Path
 import json
 
 '''
-From RenNet/env.py,
-
-
-
-Example of apps/rennet.json:
+Example of ren_utils/rennet.json:
 {
     "root_Results": "/home/tjrym/workspace/Ren-Utils/Results",
+    "root_Datasets":"",
     "datasets": {
         "Dumb": {
             "imgs": "",

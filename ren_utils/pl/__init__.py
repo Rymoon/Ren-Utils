@@ -228,7 +228,7 @@ class ResolveDirtree:
     
     ### version
     root_resolve(version=0)->self
-    get_exists_versions()->[int] or []
+    get_existing_versions()->[int] or []
     get_version()->int
     
     """
@@ -328,7 +328,7 @@ class ResolveDirtree:
         
         return True
     
-    def get_exists_versions(self):
+    def get_existing_versions(self):
         """Return List[int] or []"""
         root = Path(self.root)
         root_v = root
@@ -346,7 +346,7 @@ class ResolveDirtree:
             if o is None:
                 continue
             else:
-                versions.append(o.group(1))
+                versions.append(int(o.group(1)))
         versions.sort()
         return versions 
     
@@ -573,7 +573,7 @@ def walk_in_logs(p_results,filter_f=lambda _: True,*,flatten_all_versions=True):
     for i in trange(len(e_p_list)):
         e_root = Path(e_p_list[i])
         rsvr = ResolveDirtree(e_root)
-        ver_list = rsvr.get_exists_versions()
+        ver_list = rsvr.get_existing_versions()
         if flatten_all_versions:
             for ver in ver_list:
                 rsvr_ = ResolveDirtree(e_root)
@@ -682,7 +682,7 @@ def load_models(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=No
     - py_script: Object; A .py file. See `class RestoreModel.set_compiler_by_name`
     - Return: List of RestoreModel
     """
-    return list(load_models_lazy(rsv_list,with_ckpt,ckpt_filter_f=ckpt_filter_f,py_script=py_script,config_override=config_override,comp_env_kwargs=comp_env_kwargs),versions=versions)
+    return list(load_models_lazy(rsv_list,with_ckpt,ckpt_filter_f=ckpt_filter_f,py_script=py_script,config_override=config_override,comp_env_kwargs=comp_env_kwargs))
 
 def load_models_lazy(rsv_list:List[ResolveDirtree],with_ckpt=False,*,ckpt_filter_f=None,py_script=None,config_override=[],comp_env_kwargs={}):
     """
@@ -730,10 +730,13 @@ def get_a_RestoreModel(filter_f,py_script,root_results,gpuid:int,*,version=None)
     
     Use version=int to load a specific version. If not availabel, raise exception. 
     
-    If version=None, load the very first version of the experiment that filter_f(.)== True    """
+    If version=None, load the very first version of the experiment that filter_f(.)== True    
+    
+    Won't create log_folder. Manually create (after rm.compile()) with the path: `rm.trainer.log_dir` of instance of the class RestoreModel.
+    """
     rm = None
     for rsv in walk_in_logs(root_results,lambda fname:filter_f(fname),flatten_all_versions=False):  
-        ver_list = rsv.get_exists_versions() 
+        ver_list = rsv.get_existing_versions() 
         if version is not None:
             if version not in ver_list:
                 raise Exception(f" - Runtime Error: version {version} not in existing version list: of the exname={rsv.get_expr_name()}. Versions list= {ver_list}")
