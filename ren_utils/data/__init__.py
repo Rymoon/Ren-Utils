@@ -105,7 +105,7 @@ class MyDataset(Dataset,Errmsg):
                 raise e
             
             self.init(layers, resize_size)
-    def init(layers,resize_size):
+    def init(self,layers,resize_size):
         """
         Override this!
         
@@ -232,6 +232,10 @@ class ImageDataset(MyDataset):
     """
     To subclass, please implement:
     + an __init__(); see ImageDataset.limit for reason
+
+    * will call `init(self,layers,resize_size)` at the end of __init__
+
+    * self.init(layers,resize_size) determine how the `layers_a` is processed. For example, entries in `layers_a` can be list of pathes, a numpy array or a None, if `init()` is properly defined.
     
     * If layers is None, then it's a placeholder dataset, wont be initialized, i.e., call self.init(...);
     * else, layers[0] must be a valid List[str] in any case; Others can be [] or None.
