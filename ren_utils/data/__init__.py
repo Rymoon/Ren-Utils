@@ -230,12 +230,15 @@ class MyDataset(Dataset,Errmsg):
     
 class ImageDataset(MyDataset):
     """
+    In subclass of this, the ImageDataset.__init__ should be called at the end, after all necessary self.properties being defined.
+
+
     To subclass, please implement:
     + an __init__(); see ImageDataset.limit for reason
 
     * will call `init(self,layers,resize_size)` at the end of __init__
 
-    * self.init(layers,resize_size) determine how the `layers_a` is processed. For example, entries in `layers_a` can be list of pathes, a numpy array or a None, if `init()` is properly defined.
+    * self.init(layers,resize_size) determine how the `layers` is processed. For example, entries in `layers` can be list of pathes, a numpy array or a None, if `init()` is properly defined.
     
     * If layers is None, then it's a placeholder dataset, wont be initialized, i.e., call self.init(...);
     * else, layers[0] must be a valid List[str] in any case; Others can be [] or None.
