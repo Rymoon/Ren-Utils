@@ -654,7 +654,7 @@ def call_by_inspect(f:Callable,d:dict,**kwargs):
     dargs = dargs_for_calling(f,d)
     dargs.update(kwargs)
     try:
-        r = f(**dargs)
+        r = f(**dargs)   
     except Exception as e:
         f_ = f 
         fp = inspect.getsourcefile(f_)
