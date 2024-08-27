@@ -656,7 +656,10 @@ def call_by_inspect(f:Callable,d:dict,**kwargs):
     try:
         r = f(**dargs)   
     except Exception as e:
-        f_ = f 
+        if "__call__" in dir(f):
+            f_ = f.__call__
+        else:
+            f = f_
         fp = inspect.getsourcefile(f_)
         flineno = inspect.getsourcelines(f_)[1]
         print(f" - call_by_inspect, f defined at: {fp}, line {flineno}")
