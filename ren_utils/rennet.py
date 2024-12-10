@@ -643,23 +643,27 @@ def dargs_for_calling(f:Callable,d:dict):
     return fd
 import inspect
 import types
-def call_by_inspect(f:Callable,d:dict,**kwargs):
+def call_by_inspect(___f:Callable,___d:dict,**kwargs):
     """
-    dargs = dargs_for_calling(f,d))
+    dargs = dargs_for_calling(___f,___d))
 
     dargs.update(kwargs)
 
-    Return f(**d)
+    Return ___f(**d)
     """
-    dargs = dargs_for_calling(f,d)
+    dargs = dargs_for_calling(___f,___d)
     dargs.update(kwargs)
     try:
-        r = f(**dargs)   
+        r = ___f(**dargs)   
     except Exception as e:
-        if "__call__" in dir(f):
-            f_ = f.__call__
+        if inspect.isfunction(___f) or inspect.ismethod(___f):
+            f_ = ___f
         else:
-            f = f_
+            if inspect.ismethod(___f.__call__):
+                f_ = ___f.__call__
+            else:
+                raise Exception()
+        
         fp = inspect.getsourcefile(f_)
         flineno = inspect.getsourcelines(f_)[1]
         print(f" - call_by_inspect, f defined at: {fp}, line {flineno}")
